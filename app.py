@@ -1,4 +1,5 @@
 import os
+import json
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -57,21 +58,23 @@ with st.sidebar:
         ["Beginner", "Intermediate", "Advanced"],
     )
 
-# Main input
-question = st.text_area(
-    "What do you want to learn?",
-    placeholder="Example: Explain Bayes' theorem with a simple example.",
-    height=150,
-)
+# -------------------------
+# STUDY MODE
+# -------------------------
 
-# Generate button
-if st.button("🚀 Generate", use_container_width=True):
+if mode == "📚 Study Mode":
 
-    if not question.strip():
-        st.warning("Please enter a topic or question.")
-        st.stop()
+    question = st.text_area(
+        "What do you want to learn?",
+        placeholder="Example: Explain Bayes' theorem with a simple example.",
+        height=150,
+    )
 
-    if mode == "📚 Study Mode":
+    if st.button("🚀 Generate Study Guide", use_container_width=True):
+
+        if not question.strip():
+            st.warning("Please enter a topic or question.")
+            st.stop()
 
         prompt = f"""
 You are an expert tutor.
@@ -99,54 +102,206 @@ Create three practice questions.
 Use Markdown formatting.
 """
 
-    else:
+        with st.spinner("🤖 Preparing your study guide..."):
+
+            try:
+                response = client.chat.completions.create(
+                    model="openai/gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        }
+                    ],
+                )
+
+                answer = response.choices[0].message.content
+
+                st.markdown("---")
+                st.subheader("📖 Your Study Guide")
+                st.markdown(answer)
+
+            except Exception as e:
+                st.error("Something went wrong while contacting the AI.")
+                st.exception(e)
+
+
+# -------------------------
+# QUIZ MODE
+# -------------------------
+
+else:
+
+    topic = st.text_input(
+        "What topic should the quiz cover?",
+        placeholder="Example: Probability",
+    )
+
+    number_of_questions = st.slider(
+        "Number of questions",
+        min_value=3,
+        max_value=10,
+        value=5,
+    )
+
+    if st.button("🧠 Generate Quiz", use_container_width=True):
+
+        if not topic.strip():
+            st.warning("Please enter a topic.")
+            st.stop()
 
         prompt = f"""
-You are an expert educational quiz creator.
+Create a multiple-choice quiz.
 
 Subject: {subject}
 Difficulty: {difficulty}
+Topic: {topic}
 
-Topic:
-{question}
+Create exactly {number_of_questions} questions.
 
-Create a short quiz containing 5 questions.
+Return ONLY valid JSON using this structure:
 
-For each question:
-- Give four multiple-choice options.
-- Clearly identify the correct answer.
-- Give a one-sentence explanation.
+{{
+    "questions": [
+        {{
+            "question": "Question text",
+            "options": [
+                "Option A",
+                "Option B",
+                "Option C",
+                "Option D"
+            ],
+            "answer": 0,
+            "explanation": "Short explanation"
+        }}
+    ]
+}}
 
-Use Markdown formatting.
+The "answer" must be the zero-based index of the correct option.
 """
 
-    with st.spinner("🤖 AI is preparing your response..."):
+        with st.spinner("🤖 Creating your quiz..."):
 
-        try:
+            try:
 
-            response = client.chat.completions.create(
-                model="openai/gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    }
-                ],
-            )
+                response = client.chat.completions.create(
+                    model="openai/gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        }
+                    ],
+                )
 
-            answer = response.choices[0].message.content
+                raw_answer = response.choices[0].message.content
 
-            st.markdown("---")
+                # Remove possible Markdown code fences
+                raw_answer = raw_answer.strip()
 
-            if mode == "📚 Study Mode":
-                st.subheader("📖 Your Study Guide")
+                if raw_answer.startswith("```"):
+                    raw_answer = raw_answer.replace("```json", "")
+                    raw_answer = raw_answer.replace("```", "")
+                    raw_answer = raw_answer.strip()
+
+                quiz = json.loads(raw_answer)
+
+                st.session_state.quiz = quiz
+                st.session_state.quiz_submitted = False
+
+            except json.JSONDecodeError:
+                st.error(
+                    "The AI returned an invalid quiz format. "
+                    "Please try generating the quiz again."
+                )
+
+            except Exception as e:
+                st.error("Something went wrong while creating the quiz.")
+                st.exception(e)
+
+
+# -------------------------
+# DISPLAY QUIZ
+# -------------------------
+
+if mode == "🧠 Quiz Mode" and "quiz" in st.session_state:
+
+    quiz = st.session_state.quiz
+
+    st.markdown("---")
+    st.subheader("🧠 Your Quiz")
+
+    answers = []
+
+    for i, q in enumerate(quiz["questions"]):
+
+        st.markdown(f"### Question {i + 1}")
+
+        st.write(q["question"])
+
+        selected = st.radio(
+            "Choose an answer:",
+            q["options"],
+            key=f"question_{i}",
+        )
+
+        answers.append(selected)
+
+    if st.button("📊 Submit Quiz", use_container_width=True):
+
+        score = 0
+
+        for i, q in enumerate(quiz["questions"]):
+
+            correct_answer = q["options"][q["answer"]]
+
+            if answers[i] == correct_answer:
+                score += 1
+
+        total = len(quiz["questions"])
+
+        st.session_state.quiz_submitted = True
+        st.session_state.score = score
+
+        st.markdown("---")
+
+        st.subheader("🏆 Quiz Results")
+
+        percentage = (score / total) * 100
+
+        st.metric(
+            "Your Score",
+            f"{score}/{total}",
+        )
+
+        st.progress(percentage / 100)
+
+        if percentage >= 80:
+            st.success("Excellent work! 🎉")
+
+        elif percentage >= 50:
+            st.warning("Good effort! Keep practicing. 💪")
+
+        else:
+            st.error("Keep studying and try again! 📚")
+
+        st.subheader("📝 Answer Review")
+
+        for i, q in enumerate(quiz["questions"]):
+
+            correct_answer = q["options"][q["answer"]]
+
+            if answers[i] == correct_answer:
+                st.success(
+                    f"Question {i + 1}: Correct ✅"
+                )
             else:
-                st.subheader("🧠 Your Quiz")
+                st.error(
+                    f"Question {i + 1}: Incorrect ❌"
+                )
 
-            st.markdown(answer)
+                st.write(
+                    f"Correct answer: **{correct_answer}**"
+                )
 
-        except Exception as e:
-            st.error(
-                "Something went wrong while contacting the AI."
-            )
-            st.exception(e)
+            st.caption(q["explanation"])

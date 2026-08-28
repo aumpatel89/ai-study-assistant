@@ -1,3 +1,8 @@
+# 📚 AI Study Assistant
+
+🌐 **[Live Demo](https://ai-study-assistant-mu9wnkbsmfww4qgi3unayi.streamlit.app/)**
+
+An AI-powered study assistant that helps students understand concepts and practice what they learn.
 ## 📸 Screenshots
 
 ### 📚 Study Mode

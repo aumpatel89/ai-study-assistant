@@ -1,34 +1,19 @@
-# 📚 AI Study Assistant
+## 📸 Screenshots
 
-An AI-powered study assistant that helps students understand concepts and practice what they learn.
+### 📚 Study Mode
 
-Built with Python, Streamlit, and OpenRouter.
+Ask a question and receive a structured AI-generated study guide.
 
-## ✨ Features
+![Study Mode](screenshots/study-mode.png)
 
-- 📚 Study Mode
-- 🧠 Quiz Mode
-- 🎯 Subject selection
-- 📊 Difficulty selection
-- 🤖 AI-generated explanations
-- 💡 Simple examples
-- 📝 Key points
-- ❓ Practice questions
-- 🔐 Secure API key handling with environment variables
+### 🧠 Quiz Mode
 
-## 🛠️ Technologies
+Generate an AI-powered multiple-choice quiz.
 
-- Python 3.11+
-- Streamlit
-- OpenRouter API
-- OpenAI Python SDK
-- python-dotenv
-- Git & GitHub
+![Quiz Mode](screenshots/quiz-mode.png)
 
-## 🚀 Getting Started
+### 🏆 Quiz Results
 
-### 1. Clone the repository
+Submit your answers and receive your score and answer review.
 
-```bash
-git clone https://github.com/aumpatel89/ai-study-assistant.git
-cd ai-study-assistant
+![Quiz Results](screenshots/quiz-results.png)
